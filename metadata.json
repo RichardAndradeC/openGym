@@ -1,0 +1,7 @@
+{
+  "name": "openGym",
+  "description": "Personal gym & body weight tracker with workouts, plans, exercise library, rest timer, and analytics.",
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

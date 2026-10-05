@@ -1,16 +1,40 @@
 import { readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { createHash } from 'node:crypto'
+import { fork } from 'node:child_process'
+import { fileURLToPath } from 'node:url'
+import path from 'node:path'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-const backend = process.env.API_TARGET || 'http://127.0.0.1:3000'
-// The API refuses a state-changing request that a browser sent from anywhere other than its own
-// ORIGIN (the CSRF guard in api/server.js). The dev server is on a different port, so the page's
-// real Origin is not ORIGIN — modern browsers get through on Sec-Fetch-Site: same-origin, and
-// presenting the expected Origin here covers the ones that don't send it. Match your .env if you
-// changed ORIGIN: API_ORIGIN=https://gym.example.com npm run dev
-const apiOrigin = process.env.API_ORIGIN || 'http://localhost:8080'
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const apiServerPath = path.resolve(__dirname, '../api/server.js')
+const backend = process.env.API_TARGET || 'http://127.0.0.1:3001'
+const apiOrigin = process.env.API_ORIGIN || 'http://localhost:3000'
 const media = process.env.MEDIA_TARGET || 'http://127.0.0.1:8888'
+
+const apiBackend = {
+  name: 'opengym-api-backend',
+  configureServer(server) {
+    if (!process.env.API_TARGET && existsSync(apiServerPath)) {
+      const apiProc = fork(apiServerPath, [], {
+        env: {
+          ...process.env,
+          PORT: '3001',
+          ORIGIN: apiOrigin,
+          RP_ID: 'localhost'
+        },
+        stdio: 'inherit'
+      })
+      const cleanup = () => {
+        try { apiProc.kill() } catch {}
+      }
+      server.httpServer?.on('close', cleanup)
+      process.on('exit', cleanup)
+      process.on('SIGINT', cleanup)
+      process.on('SIGTERM', cleanup)
+    }
+  }
+}
 
 // Optional web analytics (Umami). Injected only when BOTH vars are set at build time,
 // so a plain `npm run build` — and every self-hosted install — stays telemetry-free.
@@ -60,17 +84,64 @@ const appVersion = process.env.APP_BUILD ? `${pkgVersion}+${process.env.APP_BUIL
 
 export default defineConfig({
   define: { __APP_VERSION__: JSON.stringify(appVersion) },
-  plugins: [react(), umami, swStamp],
+  plugins: [react(), umami, swStamp, apiBackend],
   base: './',
   server: {
+    host: '0.0.0.0',
+    port: 3000,
+    allowedHosts: true,
     // The Coach's core (payload, validator, prompts, HTTP adapters) lives in ../api/coach/core
     // and is imported by the phone build. vite build and vitest already reach it; the dev
     // server needs to be told the workspace is wider than frontend/.
     fs: { allow: ['..'] },
     proxy: {
-      '/api': { target: backend, changeOrigin: true, headers: { Origin: apiOrigin } },
-      '/img': { target: media, changeOrigin: true },
-      '/gif': { target: media, changeOrigin: true }
+      '/api': {
+        target: backend,
+        changeOrigin: true,
+        headers: { Origin: apiOrigin },
+        configure: (proxy) => {
+          proxy.on('error', (err, req, res) => {
+            if (res && !res.headersSent) {
+              if (req.url === '/api/config') {
+                res.writeHead(200, { 'Content-Type': 'application/json' })
+                res.end(JSON.stringify({ invite_only: false, allow_guest: true, coach: null }))
+                return
+              }
+              if (req.url === '/api/me') {
+                res.writeHead(401, { 'Content-Type': 'application/json' })
+                res.end(JSON.stringify({ error: 'not signed in' }))
+                return
+              }
+              res.writeHead(502, { 'Content-Type': 'application/json' })
+              res.end(JSON.stringify({ error: 'backend temporarily unavailable' }))
+            }
+          })
+        }
+      },
+      '/img': {
+        target: media,
+        changeOrigin: true,
+        configure: (proxy) => {
+          proxy.on('error', (err, req, res) => {
+            if (res && !res.headersSent) {
+              res.writeHead(404)
+              res.end()
+            }
+          })
+        }
+      },
+      '/gif': {
+        target: media,
+        changeOrigin: true,
+        configure: (proxy) => {
+          proxy.on('error', (err, req, res) => {
+            if (res && !res.headersSent) {
+              res.writeHead(404)
+              res.end()
+            }
+          })
+        }
+      }
     }
   },
   build: { chunkSizeWarningLimit: 1500 }

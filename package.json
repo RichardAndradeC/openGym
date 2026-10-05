@@ -1,4 +1,14 @@
 {
+  "name": "opengym",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "api"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=frontend",
+    "build": "npm run build --workspace=frontend"
+  },
   "devDependencies": {
     "js-yaml": "^4.1.0"
   }

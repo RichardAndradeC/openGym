@@ -130,8 +130,9 @@ export function matchesExerciseSearch(exercise, query) {
 // shipping ~140 MB of images into the deployment. `import.meta.env` is undefined in plain
 // Node; the guard keeps this module loadable without Vite.
 const ENV = import.meta.env || {}
-const IMG_BASE = ENV.VITE_IMG_BASE || 'img/'
-const GIF_BASE = ENV.VITE_GIF_BASE || 'gif/'
+const DEFAULT_DATASET = 'https://cdn.jsdelivr.net/gh/hasaneyldrm/exercises-dataset@7455efae41b330c265e7cd4b78dfa848e7ce5ebd'
+const IMG_BASE = ENV.VITE_IMG_BASE || `${DEFAULT_DATASET}/images/`
+const GIF_BASE = ENV.VITE_GIF_BASE || `${DEFAULT_DATASET}/videos/`
 export const imgSrc = ex => IMG_BASE + ex.img
 export const gifSrc = ex => GIF_BASE + ex.gif
 
