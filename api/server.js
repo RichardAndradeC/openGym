@@ -33,9 +33,9 @@ import { createDeviceLink, findDeviceLink, burnDeviceLink, dropDeviceLinks } fro
 import { createMediaStore, mediaLimits, mediaConfig, MediaError, HASH_RE } from './media.js';
 
 const PORT = +(process.env.PORT || 3000);
-const DATA = process.env.DATA_DIR || '/data';
-const RP_ID = process.env.RP_ID || 'localhost';
-const ORIGIN = process.env.ORIGIN || 'http://localhost:8080';
+const DATA = process.env.DATA_DIR || (process.env.VERCEL ? '/tmp/data' : '/data');
+const RP_ID = process.env.RP_ID || (process.env.VERCEL_PROJECT_PRODUCTION_URL ? process.env.VERCEL_PROJECT_PRODUCTION_URL.split(':')[0] : (process.env.VERCEL_URL ? process.env.VERCEL_URL.split(':')[0] : 'localhost'));
+const ORIGIN = process.env.ORIGIN || (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:8080'));
 const RP_NAME = process.env.RP_NAME || 'openGym';
 // Admin dashboard (issue): admins are matched by uid; INVITE_ONLY gates new signups behind a
 // code the admin generates. Both default off so a fresh self-hosted instance stays open.
@@ -64,7 +64,7 @@ const DEFAULT_LANG = (() => {
 // Whether the address a request came from may be read from the headers a proxy sets. Only the
 // sign-in throttle asks (limitAddress below); the bundled compose file sets it, because the API
 // is reachable there only through the web container, which overwrites those headers.
-const TRUST_PROXY = /^(1|true|yes|on)$/i.test(process.env.TRUST_PROXY || '');
+const TRUST_PROXY = /^(1|true|yes|on)$/i.test(process.env.TRUST_PROXY || '') || !!process.env.VERCEL;
 // 90 days keeps someone who trains a few times a week permanently signed in without a stolen
 // cookie staying good for a year. Overridable because a family instance and one on the open
 // internet don't want the same number. Only affects cookies minted from now on — the expiry is
