@@ -3,7 +3,8 @@
   "services": {
     "api": {
       "root": "api",
-      "runtime": "node"
+      "runtime": "node",
+      "entrypoint": "server.js"
     },
     "frontend": {
       "root": "frontend",
